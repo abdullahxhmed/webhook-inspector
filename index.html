@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhook Inspector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .webhooks-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .webhook-item {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s, transform 0.3s;
+        }
+
+        .webhook-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .webhook-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+
+        .webhook-id {
+            font-size: 12px;
+            color: #999;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            flex: 1;
+        }
+
+        .webhook-timestamp {
+            font-size: 12px;
+            color: #999;
+            white-space: nowrap;
+        }
+
+        .webhook-source {
+            background: #f0f4ff;
+            color: #667eea;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: inline-block;
+        }
+
+        .webhook-body {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #333;
+            border-left: 3px solid #667eea;
+        }
+
+        .webhook-body pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .webhook-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .replay-btn {
+            background: #10b981;
+            padding: 8px 16px;
+            font-size: 13px;
+            flex: 1;
+        }
+
+        .replay-btn:hover {
+            background: #059669;
+        }
+
+        .replay-btn.loading {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .copy-btn {
+            background: #6b7280;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .copy-btn:hover {
+            background: #4b5563;
+        }
+
+        .empty-state {
+            background: white;
+            padding: 60px 20px;
+            border-radius: 8px;
+            text-align: center;
+            color: #999;
+        }
+
+        .empty-state h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 16px;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c33;
+        }
+
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3c3;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .modal-content p {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .modal-content input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-buttons button {
+            padding: 8px 16px;
+        }
+
+        .modal-buttons .cancel {
+            background: #6b7280;
+        }
+
+        .modal-buttons .cancel:hover {
+            background: #4b5563;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🪝 Webhook Inspector</h1>
+            <p>Monitor and replay webhooks in real-time</p>
+            <div class="controls">
+                <button onclick="loadWebhooks()">🔄 Refresh</button>
+                <button onclick="clearAllWebhooks()">🗑️ Clear All</button>
+            </div>
+        </header>
+
+        <div id="notification"></div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <span class="spinner"></span>Loading webhooks...
+        </div>
+
+        <div id="webhooksList" class="webhooks-list"></div>
+    </div>
+
+    <!-- Replay Modal -->
+    <div id="replayModal" class="modal">
+        <div class="modal-content">
+            <h2>Replay Webhook</h2>
+            <p>Enter the target URL to send this webhook to:</p>
+            <input 
+                type="url" 
+                id="targetUrl" 
+                placeholder="https://example.com/webhook"
+                onkeypress="if(event.key==='Enter') confirmReplay()"
+            >
+            <div class="modal-buttons">
+                <button class="cancel" onclick="closeReplayModal()">Cancel</button>
+                <button onclick="confirmReplay()">Send Replay</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentReplayId = null;
+
+        // Load webhooks on page load
+        document.addEventListener('DOMContentLoaded', loadWebhooks);
+
+        async function loadWebhooks() {
+            const loading = document.getElementById('loading');
+            const webhooksList = document.getElementById('webhooksList');
+            
+            loading.style.display = 'block';
+            webhooksList.innerHTML = '';
+
+            try {
+                const response = await fetch('/webhooks');
+                if (!response.ok) throw new Error('Failed to load webhooks');
+                
+                const webhooks = await response.json();
+                loading.style.display = 'none';
+
+                if (webhooks.length === 0) {
+                    webhooksList.innerHTML = `
+                        <div class="empty-state">
+                            <h2>No webhooks yet</h2>
+                            <p>Webhooks received will appear here</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                webhooksList.innerHTML = webhooks.map(webhook => `
+                    <div class="webhook-item">
+                        <div class="webhook-header">
+                            <div class="webhook-id">ID: ${webhook._id}</div>
+                            <div class="webhook-timestamp">${formatDate(webhook.receivedAt)}</div>
+                        </div>
+                        
+                        <div class="webhook-source">📦 ${webhook.source || 'Unknown'}</div>
+                        
+                        <div class="webhook-body">
+                            <pre>${JSON.stringify(webhook.body, null, 2)}</pre>
+                        </div>
+                        
+                        <div class="webhook-actions">
+                            <button class="replay-btn" onclick="openReplayModal('${webhook._id}')">
+                                ▶️ Replay
+                            </button>
+                            <button class="copy-btn" onclick="copyToClipboard('${webhook._id}')">
+                                📋 Copy ID
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                loading.style.display = 'none';
+                webhooksList.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+
+        function openReplayModal(webhookId) {
+            currentReplayId = webhookId;
+            document.getElementById('targetUrl').value = '';
+            document.getElementById('replayModal').classList.add('active');
+            document.getElementById('targetUrl').focus();
+        }
+
+        function closeReplayModal() {
+            document.getElementById('replayModal').classList.remove('active');
+            currentReplayId = null;
+        }
+
+        async function confirmReplay() {
+            const targetUrl = document.getElementById('targetUrl').value.trim();
+            
+            if (!targetUrl) {
+                showNotification('Please enter a target URL', 'error');
+                return;
+            }
+
+            if (!isValidUrl(targetUrl)) {
+                showNotification('Please enter a valid URL', 'error');
+                return;
+            }
+
+            closeReplayModal();
+
+            try {
+                const button = event.target;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<span class="spinner"></span>Replaying...';
+                button.disabled = true;
+
+                const response = await fetch(`/webhooks/${currentReplayId}/replay`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ targetUrl })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showNotification(`✅ Webhook replayed successfully! Status: ${result.statusCode}`, 'success');
+                } else {
+                    showNotification(`❌ Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showNotification(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function isValidUrl(string) {
+            try {
+                new URL(string);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('✅ ID copied to clipboard', 'success');
+            }).catch(err => {
+                showNotification('❌ Failed to copy', 'error');
+            });
+        }
+
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.innerHTML = `<div class="${type}">${message}</div>`;
+            
+            setTimeout(() => {
+                notification.innerHTML = '';
+            }, 4000);
+        }
+
+        async function clearAllWebhooks() {
+            if (!confirm('Are you sure? This will delete all webhooks.')) {
+                return;
+            }
+
+            // This endpoint doesn't exist yet, so we'll just show a message
+            showNotification('⚠️ Clear all feature not implemented yet', 'error');
+        }
+
+        // Auto-refresh every 5 seconds
+        setInterval(loadWebhooks, 5000);
+    </script>
+</body>
+</html>
